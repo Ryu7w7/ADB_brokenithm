@@ -8,5 +8,5 @@ The application offers two key features:
 Simply ensure that USB debugging is enabled on your device to complete the process successfully!
 
 # Sources 
-- [Brokenithm Android](https://github.com/tindy2013/Brokenithm-Android-Server)
+- [Brokenithm-Server](https://github.com/tindy2013/Brokenithm-Android-Server)
 - [ADB_Debug_Bridge](https://developer.android.com/tools/adb)
