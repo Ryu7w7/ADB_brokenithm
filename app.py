@@ -1,244 +1,190 @@
+from PIL import Image, ImageTk
 import tkinter as tk
 from tkinter import ttk, messagebox
 import subprocess
 import os
-import sys
+import locale
 
-adb_directory = os.path.join(os.path.dirname(__file__), 'adb')
-server_directory = os.path.join(os.path.dirname(__file__), 'server')
-icon_path = os.path.join(os.path.dirname(__file__), 'icon.ico')
+NO_WINDOW = subprocess.CREATE_NO_WINDOW
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+ADB_DIR = os.path.join(BASE_DIR, "adb")
+ADB_EXE = os.path.join(ADB_DIR, "adb.exe")
+SERVER_DIR = os.path.join(BASE_DIR, "server")
+ICON_PATH = os.path.join(BASE_DIR, "icon.ico")
+BG_IMAGE_PATH = os.path.join(BASE_DIR, "bg.png")
+
+def detect_system_language():
+    try:
+        lang = locale.getdefaultlocale()[0]
+        if lang and lang.lower().startswith("es"):
+            return "es"
+        return "en"
+    except Exception:
+        return "en"
+
+current_language = detect_system_language()
 
 texts = {
     "es": {
-        "title": "Administrador ADB brokenithm",
+        "title": "ADB_Brokenithm",
         "detect_device": "Detectar dispositivo",
         "start_server": "Iniciar Brokenithm Server",
         "exit": "Salir",
-        "status_waiting": "Esperando a que se conecte un dispositivo",
-        "device_detected": "Dispositivo detectado. Ejecutando redireccionamiento...",
-        "no_device": "Ningún dispositivo detectado. Intentando de nuevo",
+        "status_waiting": "Esperando dispositivo",
+        "device_detected": "Dispositivo detectado. Redirigiendo puertos...",
+        "no_device": "Ningún dispositivo detectado",
         "redirect_complete": "Redirección completada. Ya puede iniciar el servidor.",
         "redirect_error": "Error al redirigir puertos:",
         "start_server_error": "Error al iniciar el servidor:",
-        "server_not_found": "Error: brokenithm_server.exe no encontrado.",
-        "server_started": "Servidor Brokenithm iniciado en una nueva consola.",
+        "server_not_found": "brokenithm_server.exe no encontrado.",
+        "server_started": "Servidor Brokenithm iniciado.",
         "exit_confirm": "¿Estás seguro de que quieres salir?",
-        "error": "Error al ejecutar adb:",
-        "instruction": "* Para conectarse al servidor brokenithm utiliza la siguiente dirección: 127.0.0.1:8081 con protocolo TCP *",
+        "error": "Error ejecutando adb:",
+        "instruction": "* Conecta con 127.0.0.1:8081 usando TCP *",
         "about": "Acerca de",
-        "created_by": "Creado por Ryu7w7 v0.2"
+        "created_by": "Ver. v0.3"
     },
     "en": {
-        "title": "ADB Manager brokenithm",
+        "title": "ADB_Brokenithm",
         "detect_device": "Detect Device",
         "start_server": "Start Brokenithm Server",
         "exit": "Exit",
-        "status_waiting": "Waiting for a device to connect",
+        "status_waiting": "Waiting for device",
         "device_detected": "Device detected. Redirecting ports...",
-        "no_device": "No device detected. Trying again",
-        "redirect_complete": "Redirect complete. You can now start the server.",
-        "redirect_error": "Error redirecting ports:",
-        "start_server_error": "Error starting server:",
-        "server_not_found": "Error: brokenithm_server.exe not found.",
-        "server_started": "Brokenithm server started in a new console.",
+        "no_device": "No device detected",
+        "redirect_complete": "Redirect complete. You can start the server.",
+        "redirect_error": "Port redirect error:",
+        "start_server_error": "Server start error:",
+        "server_not_found": "brokenithm_server.exe not found.",
+        "server_started": "Brokenithm server started.",
         "exit_confirm": "Are you sure you want to exit?",
-        "error": "Error running adb:",
-        "instruction": "* To connect to the Brokenithm server, use the following address: 127.0.0.1:8081 with TCP protocol *",
+        "error": "ADB execution error:",
+        "instruction": "* Connect with 127.0.0.1:8081 using TCP *",
         "about": "About",
-        "created_by": "Created by Ryu7w7 v0.2"
-    },
-    "ja": {
-        "title": "ADBマネージャーbrokenithm",
-        "detect_device": "デバイスを検出",
-        "start_server": "Brokenithmサーバーを起動",
-        "exit": "終了",
-        "status_waiting": "デバイスの接続を待っています",
-        "device_detected": "デバイスが検出されました。ポートをリダイレクトしています...",
-        "no_device": "デバイスが検出されません。再試行します",
-        "redirect_complete": "リダイレクト完了。サーバーを起動できます。",
-        "redirect_error": "ポートのリダイレクトエラー:",
-        "start_server_error": "サーバーの起動エラー:",
-        "server_not_found": "エラー: brokenithm_server.exeが見つかりません。",
-        "server_started": "Brokenithmサーバーが新しいコンソールで起動しました。",
-        "exit_confirm": "本当に終了しますか？",
-        "error": "adbの実行エラー:",
-        "instruction": "* Brokenithmサーバーに接続するには、TCPプロトコルで次のアドレスを使用してください：127.0.0.1:8081 *",
-        "about": "約",
-        "created_by": "Ryu7w7によって作成されました v0.2"
-    },
-    "zh": {
-        "title": "ADB管理器brokenithm",
-        "detect_device": "检测设备",
-        "start_server": "启动Brokenithm服务器",
-        "exit": "退出",
-        "status_waiting": "等待设备连接",
-        "device_detected": "设备已检测到。正在重定向端口...",
-        "no_device": "未检测到设备。重试中",
-        "redirect_complete": "重定向完成。现在可以启动服务器。",
-        "redirect_error": "端口重定向错误：",
-        "start_server_error": "启动服务器错误：",
-        "server_not_found": "错误：未找到brokenithm_server.exe。",
-        "server_started": "Brokenithm服务器已在新控制台中启动。",
-        "exit_confirm": "您确定要退出吗？",
-        "error": "执行adb时出错：",
-        "instruction": "* 要连接到Brokenithm服务器，请使用以下地址：127.0.0.1:8081，使用TCP协议 *",
-        "about": "关于",
-        "created_by": "由Ryu7w7创建 v0.2"
-    },
-    "ko": {
-        "title": "ADB 관리자 brokenithm",
-        "detect_device": "장치 감지",
-        "start_server": "Brokenithm 서버 시작",
-        "exit": "종료",
-        "status_waiting": "장치 연결 대기 중",
-        "device_detected": "장치가 감지되었습니다. 포트를 리디렉션하는 중...",
-        "no_device": "장치가 감지되지 않았습니다. 다시 시도 중",
-        "redirect_complete": "리디렉션 완료. 이제 서버를 시작할 수 있습니다.",
-        "redirect_error": "포트 리디렉션 오류:",
-        "start_server_error": "서버 시작 오류:",
-        "server_not_found": "오류: brokenithm_server.exe를 찾을 수 없습니다.",
-        "server_started": "Brokenithm 서버가 새 콘솔에서 시작되었습니다.",
-        "exit_confirm": "정말로 종료하시겠습니까?",
-        "error": "adb 실행 오류:",
-        "instruction": "* Brokenithm 서버에 연결하려면 다음 주소를 사용하십시오: 127.0.0.1:8081, TCP 프로토콜 사용 *",
-        "about": "정보",
-        "created_by": "Ryu7w7에 의해 생성됨 v0.2"
+        "created_by": "Ver. v0.3"
     }
 }
 
-current_language = "es"
+def t(key):
+    return texts[current_language][key]
 
-def set_language(language):
-    global current_language
-    current_language = language
-    root.title(f"{texts[language]['title']} - {texts[language]['created_by']}")
-    button.config(text=texts[language]["detect_device"])
-    server_button.config(text=texts[language]["start_server"])
-    exit_button.config(text=texts[language]["exit"])
-    status_label.config(text=texts[language]["status_waiting"] + '...')
-    instruction_label.config(text=texts[language]["instruction"])
-    about_menu.entryconfig(0, label=texts[language]["about"])
-    update_language_buttons()
-    lang_tabs.tab(0, text=texts[language]["title"])
-    lang_tabs.tab(1, text="Language" if language == "en" else "Idioma")
+dot_count = 0
 
-def update_language_buttons():
-    lang_texts = {
-        "es": "Español",
-        "en": "English",
-        "ja": "日本語",
-        "zh": "中文",
-        "ko": "한국어"
-    }
-    for idx, (btn, lang) in enumerate(lang_buttons):
-        btn.config(text=lang_texts[lang])
+def update_status(msg, color="black"):
+    status_var.set(msg)
+    status_label.config(fg=color)
+
+def adb_exists():
+    return os.path.exists(ADB_EXE)
 
 def detect_device():
+    global dot_count
+
+    if not adb_exists():
+        update_status("adb.exe not found", "red")
+        return
+
     try:
-        if not os.path.exists(adb_directory):
-            raise FileNotFoundError(f"El directorio {adb_directory} no existe.")
-        os.chdir(adb_directory)
-        result = subprocess.run(['adb', 'devices'], capture_output=True, text=True)
-        devices = [line for line in result.stdout.splitlines() if '\tdevice' in line]
+        result = subprocess.run(
+            [ADB_EXE, "devices"],
+            cwd=ADB_DIR,
+            capture_output=True,
+            text=True,
+            creationflags=NO_WINDOW
+        )
+
+        devices = [l for l in result.stdout.splitlines() if "\tdevice" in l]
+
         if devices:
-            update_status(texts[current_language]["device_detected"], "green")
+            update_status(t("device_detected"), "green")
             root.after(1000, redirect_ports)
         else:
-            animate_dots()
+            dot_count = (dot_count + 1) % 4
+            update_status(t("no_device") + "." * dot_count)
+            root.after(1000, detect_device)
+
     except Exception as e:
-        update_status(f"{texts[current_language]['error']} {e}", "red")
+        update_status(f"{t('error')} {e}", "red")
 
 def redirect_ports():
     try:
-        result = subprocess.run(['adb', 'reverse', 'tcp:8081', 'tcp:8080'], capture_output=True, text=True)
+        result = subprocess.run(
+            [ADB_EXE, "reverse", "tcp:8081", "tcp:8080"],
+            cwd=ADB_DIR,
+            capture_output=True,
+            text=True,
+            creationflags=NO_WINDOW
+        )
+
         if result.returncode == 0:
-            update_status(texts[current_language]["redirect_complete"], "green")
+            update_status(t("redirect_complete"), "green")
         else:
-            update_status(f"{texts[current_language]['redirect_error']} {result.stderr}", "red")
+            update_status(f"{t('redirect_error')} {result.stderr}", "red")
+
     except Exception as e:
-        update_status(f"{texts[current_language]['redirect_error']} {e}", "red")
+        update_status(f"{t('redirect_error')} {e}", "red")
 
 def start_server():
     try:
-        if not os.path.exists(server_directory):
-            raise FileNotFoundError(f"El directorio {server_directory} no existe.")
-        original_directory = os.getcwd()
-        os.chdir(server_directory)
-        if os.path.exists('brokenithm_server.exe'):
-            subprocess.Popen(['brokenithm_server.exe', '-T', '-p', '8080'], creationflags=subprocess.CREATE_NEW_CONSOLE)
-            update_status(texts[current_language]["server_started"], "green")
-        else:
-            update_status(texts[current_language]["server_not_found"], "red")
-        os.chdir(original_directory)
-    except Exception as e:
-        update_status(f"{texts[current_language]['start_server_error']} {e}", "red")
+        exe = os.path.join(SERVER_DIR, "brokenithm_server.exe")
 
-def update_status(message, color):
-    status_label.config(text=message, fg=color)
+        if not os.path.exists(exe):
+            update_status(t("server_not_found"), "red")
+            return
+
+        subprocess.Popen(
+            [exe, "-T", "-p", "8080"],
+            cwd=SERVER_DIR,
+            creationflags=subprocess.CREATE_NEW_CONSOLE
+        )
+
+        update_status(t("server_started"), "green")
+
+    except Exception as e:
+        update_status(f"{t('start_server_error')} {e}", "red")
 
 def exit_app():
-    if messagebox.askyesno(texts[current_language]["title"], texts[current_language]["exit_confirm"]):
+    if messagebox.askyesno(t("title"), t("exit_confirm")):
         root.destroy()
 
 def show_about():
-    messagebox.showinfo(texts[current_language]["about"], texts[current_language]["created_by"])
+    messagebox.showinfo(t("about"), t("created_by"))
 
 root = tk.Tk()
-root.title(f"{texts[current_language]['title']} - {texts[current_language]['created_by']}")
+root.title(f"{t('title')} - {t('created_by')}")
 root.geometry("400x400")
 root.resizable(False, False)
-root.iconbitmap(icon_path)
+ICON_PATH = os.path.join(BASE_DIR, "icon.png")
 
-style = ttk.Style()
-style.configure('TButton', padding=6, relief="flat", background="#ccc")
+try:
+    icon_img = tk.PhotoImage(file=ICON_PATH)
+    root.iconphoto(True, icon_img)
+except Exception:
+    pass
 
-menu_bar = tk.Menu(root)
-root.config(menu=menu_bar)
+bg_image = Image.open(BG_IMAGE_PATH)
+bg_image = bg_image.resize((400, 400))
+bg_photo = ImageTk.PhotoImage(bg_image)
+bg_label = tk.Label(root, image=bg_photo)
+bg_label.place(x=0, y=0, relwidth=1, relheight=1)
+bg_label.image = bg_photo
 
-about_menu = tk.Menu(menu_bar, tearoff=0)
-menu_bar.add_cascade(label=texts[current_language]["about"], menu=about_menu)
-about_menu.add_command(label=texts[current_language]["about"], command=show_about)
+status_var = tk.StringVar(value=t("status_waiting") + "...")
 
-lang_tabs = ttk.Notebook(root)
-main_tab = ttk.Frame(lang_tabs)
-lang_tab = ttk.Frame(lang_tabs)
-lang_tabs.add(main_tab, text=texts[current_language]["title"])
-lang_tabs.add(lang_tab, text="Idioma" if current_language == "es" else "Language")
-lang_tabs.pack(expand=1, fill="both")
+ttk.Button(root, text=t("detect_device"), command=detect_device).pack(pady=10)
+ttk.Button(root, text=t("start_server"), command=start_server).pack(pady=10)
+ttk.Button(root, text=t("exit"), command=exit_app).pack(pady=10)
 
-lang_buttons = []
-
-lang_frame = tk.Frame(lang_tab)
-lang_frame.pack(expand=1)
-
-for idx, (lang, text) in enumerate([("es", "Español"), ("en", "English"), ("ja", "日本語"), ("zh", "中文"), ("ko", "한국어")]):
-    btn = ttk.Button(lang_frame, text=text, command=lambda l=lang: set_language(l), style='TButton')
-    btn.grid(row=idx, column=0, padx=5, pady=5, sticky="ew")
-    lang_buttons.append((btn, lang))
-
-button = ttk.Button(main_tab, text=texts[current_language]["detect_device"], command=detect_device, style='TButton')
-button.pack(pady=10)
-
-server_button = ttk.Button(main_tab, text=texts[current_language]["start_server"], command=start_server, style='TButton')
-server_button.pack(pady=10)
-
-exit_button = ttk.Button(main_tab, text=texts[current_language]["exit"], command=exit_app, style='TButton')
-exit_button.pack(pady=10)
-
-status_label = tk.Label(main_tab, text=texts[current_language]["status_waiting"] + '...')
+status_label = tk.Label(root, textvariable=status_var)
 status_label.pack(pady=10)
 
-instruction_label = tk.Label(main_tab, text=texts[current_language]["instruction"], wraplength=380)
-instruction_label.pack(pady=10)
+tk.Label(root, text=t("instruction"), wraplength=380).pack(pady=10)
 
-def animate_dots():
-    if '...' not in status_label.cget("text"):
-        status_label.config(text=status_label.cget("text") + '.')
-    else:
-        status_label.config(text=texts[current_language]["no_device"])
-    root.after(1000, detect_device)
-
-set_language(current_language)
+menu = tk.Menu(root)
+root.config(menu=menu)
+about_menu = tk.Menu(menu, tearoff=0)
+menu.add_cascade(label=t("about"), menu=about_menu)
+about_menu.add_command(label=t("about"), command=show_about)
 
 root.protocol("WM_DELETE_WINDOW", exit_app)
 root.mainloop()
