@@ -4,14 +4,26 @@ from tkinter import ttk, messagebox
 import subprocess
 import os
 import locale
+import threading
+from tkinter.scrolledtext import ScrolledText
+import sys
 
 NO_WINDOW = subprocess.CREATE_NO_WINDOW
+
+def resource_path(relative):
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative)
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ADB_DIR = os.path.join(BASE_DIR, "adb")
+ADB_DIR = resource_path("adb")
 ADB_EXE = os.path.join(ADB_DIR, "adb.exe")
-SERVER_DIR = os.path.join(BASE_DIR, "server")
-ICON_PATH = os.path.join(BASE_DIR, "icon.ico")
-BG_IMAGE_PATH = os.path.join(BASE_DIR, "bg.png")
+SERVER_DIR = resource_path("server")
+ICON_PATH = resource_path("icon.ico")
+
+brokenithm_process = None
 
 def detect_system_language():
     try:
@@ -27,7 +39,7 @@ current_language = detect_system_language()
 texts = {
     "es": {
         "title": "ADB_Brokenithm",
-        "detect_device": "Detectar dispositivo",
+        "detect_device": "Detectar dispositivo (USB)",
         "start_server": "Iniciar Brokenithm Server",
         "exit": "Salir",
         "status_waiting": "Esperando dispositivo",
@@ -40,13 +52,13 @@ texts = {
         "server_started": "Servidor Brokenithm iniciado.",
         "exit_confirm": "¿Estás seguro de que quieres salir?",
         "error": "Error ejecutando adb:",
-        "instruction": "* Conecta con 127.0.0.1:8081 usando TCP *",
+        "instruction": "USB: 127.0.0.1:52468 TCP | LAN: 192.168.X.X:52468 TCP",
         "about": "Acerca de",
-        "created_by": "Ver. v0.3"
+        "created_by": "RyuVer. v0.4"
     },
     "en": {
         "title": "ADB_Brokenithm",
-        "detect_device": "Detect Device",
+        "detect_device": "Detect Device (USB)",
         "start_server": "Start Brokenithm Server",
         "exit": "Exit",
         "status_waiting": "Waiting for device",
@@ -59,9 +71,9 @@ texts = {
         "server_started": "Brokenithm server started.",
         "exit_confirm": "Are you sure you want to exit?",
         "error": "ADB execution error:",
-        "instruction": "* Connect with 127.0.0.1:8081 using TCP *",
+        "instruction": "USB: 127.0.0.1:52468 | LAN: 192.168.X.X:52468",
         "about": "About",
-        "created_by": "Ver. v0.3"
+        "created_by": "RyuVer. v0.4"
     }
 }
 
@@ -70,7 +82,7 @@ def t(key):
 
 dot_count = 0
 
-def update_status(msg, color="black"):
+def update_status(msg, color="#cccccc"):
     status_var.set(msg)
     status_label.config(fg=color)
 
@@ -79,11 +91,9 @@ def adb_exists():
 
 def detect_device():
     global dot_count
-
     if not adb_exists():
-        update_status("adb.exe not found", "red")
+        update_status("adb.exe not found", "#ff5555")
         return
-
     try:
         result = subprocess.run(
             [ADB_EXE, "devices"],
@@ -92,59 +102,81 @@ def detect_device():
             text=True,
             creationflags=NO_WINDOW
         )
-
         devices = [l for l in result.stdout.splitlines() if "\tdevice" in l]
-
         if devices:
-            update_status(t("device_detected"), "green")
+            update_status(t("device_detected"), "#55ff99")
             root.after(1000, redirect_ports)
         else:
             dot_count = (dot_count + 1) % 4
             update_status(t("no_device") + "." * dot_count)
             root.after(1000, detect_device)
-
     except Exception as e:
-        update_status(f"{t('error')} {e}", "red")
+        update_status(f"{t('error')} {e}", "#ff5555")
 
 def redirect_ports():
     try:
         result = subprocess.run(
-            [ADB_EXE, "reverse", "tcp:8081", "tcp:8080"],
+            [ADB_EXE, "reverse", "tcp:52468", "tcp:52468"],
             cwd=ADB_DIR,
             capture_output=True,
             text=True,
             creationflags=NO_WINDOW
         )
-
         if result.returncode == 0:
-            update_status(t("redirect_complete"), "green")
+            update_status(t("redirect_complete"), "#55ff99")
         else:
-            update_status(f"{t('redirect_error')} {result.stderr}", "red")
-
+            update_status(f"{t('redirect_error')} {result.stderr}", "#ff5555")
     except Exception as e:
-        update_status(f"{t('redirect_error')} {e}", "red")
+        update_status(f"{t('redirect_error')} {e}", "#ff5555")
+
+def write_log(text):
+    log_box.configure(state="normal")
+    low = text.lower()
+    if "error" in low:
+        tag = "error"
+    elif "warn" in low:
+        tag = "warn"
+    elif "connect" in low or "listen" in low:
+        tag = "ok"
+    else:
+        tag = "normal"
+    log_box.insert("end", text, tag)
+    log_box.see("end")
+    log_box.configure(state="disabled")
+
+def read_server_output(proc):
+    for line in proc.stdout:
+        root.after(0, write_log, line)
 
 def start_server():
-    try:
-        exe = os.path.join(SERVER_DIR, "brokenithm_server.exe")
-
-        if not os.path.exists(exe):
-            update_status(t("server_not_found"), "red")
-            return
-
-        subprocess.Popen(
-            [exe, "-T", "-p", "8080"],
-            cwd=SERVER_DIR,
-            creationflags=subprocess.CREATE_NEW_CONSOLE
-        )
-
-        update_status(t("server_started"), "green")
-
-    except Exception as e:
-        update_status(f"{t('start_server_error')} {e}", "red")
+    global brokenithm_process
+    exe = os.path.join(SERVER_DIR, "brokenithm_server.exe")
+    if not os.path.exists(exe):
+        update_status(t("server_not_found"), "#ff5555")
+        return
+    if brokenithm_process and brokenithm_process.poll() is None:
+        update_status("Server already running.", "#ffaa00")
+        return
+    brokenithm_process = subprocess.Popen(
+        [exe, "-T"],
+        cwd=SERVER_DIR,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        bufsize=1,
+        creationflags=subprocess.CREATE_NO_WINDOW
+    )
+    threading.Thread(target=read_server_output, args=(brokenithm_process,), daemon=True).start()
+    update_status(t("server_started"), "#55ff99")
 
 def exit_app():
+    global brokenithm_process
     if messagebox.askyesno(t("title"), t("exit_confirm")):
+        try:
+            if brokenithm_process and brokenithm_process.poll() is None:
+                brokenithm_process.kill()
+        except Exception:
+            pass
         root.destroy()
 
 def show_about():
@@ -152,39 +184,53 @@ def show_about():
 
 root = tk.Tk()
 root.title(f"{t('title')} - {t('created_by')}")
-root.geometry("400x400")
+root.geometry("420x560")
 root.resizable(False, False)
-ICON_PATH = os.path.join(BASE_DIR, "icon.png")
+root.configure(bg="#1b1b1b")
 
 try:
-    icon_img = tk.PhotoImage(file=ICON_PATH)
-    root.iconphoto(True, icon_img)
-except Exception:
-    pass
+    root.iconbitmap(ICON_PATH)
+except Exception as e:
+    print(f"Error cargando icono: {e}")
 
-bg_image = Image.open(BG_IMAGE_PATH)
-bg_image = bg_image.resize((400, 400))
-bg_photo = ImageTk.PhotoImage(bg_image)
-bg_label = tk.Label(root, image=bg_photo)
-bg_label.place(x=0, y=0, relwidth=1, relheight=1)
-bg_label.image = bg_photo
+style = ttk.Style(root)
+style.theme_use("clam")
+style.configure("TButton", font=("Segoe UI", 10, "bold"), padding=8)
+style.configure("TLabel", background="#1b1b1b", foreground="#dddddd")
+
+header = tk.Label(root, text="ADB_BROKENITHM", font=("Segoe UI", 15, "bold"),
+                  bg="#1b1b1b", fg="#55ffd5")
+header.pack(pady=10)
+
+btn_frame = tk.Frame(root, bg="#1b1b1b")
+btn_frame.pack(pady=6)
+ttk.Button(btn_frame, text=t("detect_device"), width=32, command=detect_device).pack(pady=4)
+ttk.Button(btn_frame, text=t("start_server"), width=32, command=start_server).pack(pady=4)
+ttk.Button(btn_frame, text=t("exit"), width=32, command=exit_app).pack(pady=4)
 
 status_var = tk.StringVar(value=t("status_waiting") + "...")
+status_label = tk.Label(root, textvariable=status_var, bg="#1b1b1b",
+                        fg="#cccccc", font=("Segoe UI", 9))
+status_label.pack(pady=6)
 
-ttk.Button(root, text=t("detect_device"), command=detect_device).pack(pady=10)
-ttk.Button(root, text=t("start_server"), command=start_server).pack(pady=10)
-ttk.Button(root, text=t("exit"), command=exit_app).pack(pady=10)
+tk.Label(root, text=t("instruction"), wraplength=390,
+         bg="#1b1b1b", fg="#888888", font=("Segoe UI", 9)).pack(pady=4)
 
-status_label = tk.Label(root, textvariable=status_var)
-status_label.pack(pady=10)
+log_frame = tk.Frame(root, bg="#1b1b1b")
+log_frame.pack(fill="both", expand=True, padx=10, pady=8)
+log_box = ScrolledText(log_frame, height=10, state="disabled",
+                       font=("Consolas", 10),
+                       background="#111111", foreground="#dddddd",
+                       insertbackground="white")
+log_box.pack(fill="both", expand=True)
+log_box.tag_config("error", foreground="#ff5555")
+log_box.tag_config("warn", foreground="#ffaa00")
+log_box.tag_config("ok", foreground="#55ff99")
+log_box.tag_config("normal", foreground="#dddddd")
 
-tk.Label(root, text=t("instruction"), wraplength=380).pack(pady=10)
-
-menu = tk.Menu(root)
-root.config(menu=menu)
-about_menu = tk.Menu(menu, tearoff=0)
-menu.add_cascade(label=t("about"), menu=about_menu)
-about_menu.add_command(label=t("about"), command=show_about)
+footer = tk.Label(root, text="ADB_Brokenithm by Ryu7w7",
+                  bg="#111111", fg="#666666", font=("Segoe UI", 8))
+footer.pack(fill="x", side="bottom")
 
 root.protocol("WM_DELETE_WINDOW", exit_app)
 root.mainloop()
