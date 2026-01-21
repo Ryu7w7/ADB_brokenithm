@@ -1,11 +1,11 @@
-# This application is developed to streamline the integration of Brokenithm with USB devices.
-The application offers two key features: 
+# Program developed for WIFI/USB devices.
+
 - The 'Detect Devices' option assists in setting up adb reverse.
-- The 'Start Brokenithm Server' option opens the server interface configured with TCP for reduced latency when connected via USB.
+- The 'Start Brokenithm Server' option opens the server interface configured with TCP for via USB/WIFI.
 
 ![image](https://github.com/user-attachments/assets/e0044069-cff9-46cb-a41d-cbd4c6bf2d2d)
 
-Simply ensure that USB debugging is enabled on your device to complete the process successfully!
+Please ensure "USB debugging" is enabled on your device to complete the process via USB!
 
 # Important
 You need custom IO DLL [brokenithm](https://gitea.tendokyu.moe/Dniel97/Brokenithm-Evolved/releases/tag/v0.4.0) and extract it inside App/bin
